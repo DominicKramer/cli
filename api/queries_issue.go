@@ -24,6 +24,7 @@ type Issue struct {
 	URL       string
 	State     string
 	Body      string
+	CreatedAt time.Time
 	UpdatedAt time.Time
 	Comments  struct {
 		TotalCount int
@@ -48,6 +49,7 @@ const fragments = `
 		title
 		url
 		state
+		createdAt
 		updatedAt
 		labels(first: 3) {
 			nodes {

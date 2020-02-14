@@ -36,6 +36,7 @@ func init() {
 	issueListCmd.Flags().StringSliceP("label", "l", nil, "Filter by label")
 	issueListCmd.Flags().StringP("state", "s", "", "Filter by state: {open|closed|all}")
 	issueListCmd.Flags().IntP("limit", "L", 30, "Maximum number of issues to fetch")
+	issueListCmd.Flags().IntP("age", "g", -1, "Filter at least as many days old as specified")
 
 	issueViewCmd.Flags().BoolP("preview", "p", false, "Display preview of issue content")
 }
@@ -108,6 +109,11 @@ func issueList(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	age, err := cmd.Flags().GetInt("age")
+	if err != nil {
+		return err
+	}
+
 	fmt.Fprintf(colorableErr(cmd), "\nIssues for %s\n\n", ghrepo.FullName(*baseRepo))
 
 	issues, err := api.IssueList(apiClient, *baseRepo, state, labels, assignee, limit)
@@ -133,6 +139,11 @@ func issueList(cmd *cobra.Command, args []string) error {
 	out := cmd.OutOrStdout()
 	table := utils.NewTablePrinter(out)
 	for _, issue := range issues {
+		issueAge := int(time.Now().Sub(issue.CreatedAt).Hours()/float64(24))
+		if age >= 0 && issueAge < age {
+			continue
+		}
+
 		issueNum := strconv.Itoa(issue.Number)
 		if table.IsTTY() {
 			issueNum = "#" + issueNum
@@ -144,6 +155,7 @@ func issueList(cmd *cobra.Command, args []string) error {
 		table.AddField(issueNum, nil, colorFuncForState(issue.State))
 		table.AddField(replaceExcessiveWhitespace(issue.Title), nil, nil)
 		table.AddField(labels, nil, utils.Gray)
+		table.AddField(fmt.Sprintf("Age: %d days", issueAge), nil, utils.Blue)
 		table.EndRow()
 	}
 	table.Render()
