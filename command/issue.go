@@ -36,7 +36,8 @@ func init() {
 	issueListCmd.Flags().StringSliceP("label", "l", nil, "Filter by label")
 	issueListCmd.Flags().StringP("state", "s", "", "Filter by state: {open|closed|all}")
 	issueListCmd.Flags().IntP("limit", "L", 30, "Maximum number of issues to fetch")
-	issueListCmd.Flags().IntP("age", "g", -1, "Filter at least as many days old as specified")
+	issueListCmd.Flags().IntP("olderThan", "o", -1, "Filter issues older than the specified number of days")
+	issueListCmd.Flags().IntP("youngerThan", "y", -1, "Filter issues younger than the specified number of days")
 
 	issueViewCmd.Flags().BoolP("preview", "p", false, "Display preview of issue content")
 }
@@ -109,7 +110,12 @@ func issueList(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	age, err := cmd.Flags().GetInt("age")
+	olderThan, err := cmd.Flags().GetInt("olderThan")
+	if err != nil {
+		return err
+	}
+
+	youngerThan, err := cmd.Flags().GetInt("youngerThan")
 	if err != nil {
 		return err
 	}
@@ -139,8 +145,11 @@ func issueList(cmd *cobra.Command, args []string) error {
 	out := cmd.OutOrStdout()
 	table := utils.NewTablePrinter(out)
 	for _, issue := range issues {
+		// the age of the issue in days
 		issueAge := int(time.Now().Sub(issue.CreatedAt).Hours()/float64(24))
-		if age >= 0 && issueAge < age {
+		oldEnough := olderThan < 0 || issueAge >= olderThan
+		youngEnough := youngerThan < 0 || issueAge <= youngerThan
+		if !oldEnough || !youngEnough {
 			continue
 		}
 
